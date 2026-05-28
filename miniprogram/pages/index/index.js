@@ -1,4 +1,5 @@
 const config = require('../../config');
+const localFoodsData = require('../../foods_data');
 
 // Promise 化封装
 function requestPromise(options) {
