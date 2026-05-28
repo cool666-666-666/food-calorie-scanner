@@ -1,0 +1,396 @@
+const config = require('../../config');
+
+// Promise 化封装
+function requestPromise(options) {
+  return new Promise((resolve, reject) => {
+    wx.request({ ...options, success: resolve, fail: reject });
+  });
+}
+
+function readFilePromise(options) {
+  return new Promise((resolve, reject) => {
+    wx.getFileSystemManager().readFile({ ...options, success: resolve, fail: reject });
+  });
+}
+
+function compressImagePromise(src) {
+  return new Promise((resolve, reject) => {
+    wx.compressImage({ src, quality: 80, success: resolve, fail: reject });
+  });
+}
+
+Page({
+  data: {
+    imgSrc: '',
+    result: null,
+    showInputModal: false,
+    inputName: '',
+    inputCalorie: '',
+    totalCalorie: 0,
+    showFoodList: false,
+    allFoods: [],
+    filteredFoods: [],
+    foodSearchKeyword: ''
+  },
+
+  // 1. 选择图片/拍照（增加压缩步骤）
+  chooseImage() {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: async (res) => {
+        const tempFilePath = res.tempFilePaths[0];
+        this.setData({ imgSrc: tempFilePath });
+        // 先压缩图片，提高识别速度和准确率
+        try {
+          const compressRes = await compressImagePromise(tempFilePath);
+          this.getAccessToken(compressRes.tempFilePath);
+        } catch (e) {
+          // 压缩失败就用原图
+          this.getAccessToken(tempFilePath);
+        }
+      },
+      fail: (err) => {
+        if (err.errMsg.includes('cancel') || err.errMsg.includes('auth deny')) {
+          wx.showModal({
+            title: '需要权限',
+            content: '需要开启相机/相册权限，才能拍照识别食物',
+            confirmText: '去开启',
+            success: (modalRes) => {
+              if (modalRes.confirm) wx.openSetting();
+            }
+          });
+        } else {
+          wx.showToast({ title: '选图失败，请重试', icon: 'none' });
+        }
+      }
+    });
+  },
+
+  // 2. 获取百度AI的Access Token
+  getAccessToken(filePath) {
+    const API_KEY = config.BAIDU_API_KEY;
+    const SECRET_KEY = config.BAIDU_SECRET_KEY;
+
+    wx.request({
+      url: 'https://aip.baidubce.com/oauth/2.0/token',
+      method: 'POST',
+      header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: {
+        grant_type: 'client_credentials',
+        client_id: API_KEY,
+        client_secret: SECRET_KEY
+      },
+      success: (res) => {
+        if (res.data.access_token) {
+          this.identifyFood(filePath, res.data.access_token);
+        } else {
+          wx.showToast({
+            title: res.data.error_description || '获取AI权限失败',
+            icon: 'none',
+            duration: 3000
+          });
+        }
+      },
+      fail: () => {
+        wx.showToast({ title: '网络请求失败，请检查网络', icon: 'none' });
+      }
+    });
+  },
+
+  // 3. 识别食物（多结果级联：每层尝试所有5个结果后再切换API）
+  async identifyFood(filePath, accessToken) {
+    wx.showLoading({ title: '识别中...' });
+
+    let base64Img;
+    try {
+      const fileRes = await readFilePromise({ filePath, encoding: 'base64' });
+      base64Img = fileRes.data;
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '图片读取失败', icon: 'none' });
+      return;
+    }
+
+    const NON_DISH_KEYWORDS = ['非菜', '无法识别', '未知菜品', '非菜品', '其他'];
+    const NON_INGREDIENT_KEYWORDS = ['非果蔬食材', '无法识别', '未知食材', '其他'];
+    const NON_FOOD_KEYWORDS = ['人物', '建筑', '汽车', '桌子', '盘子', '筷子', '碗', '杯子', '手机', '书本', '动物', '风景'];
+
+    // 辅助函数：判断结果是否为有效食物
+    function isValidResult(name, blacklist, minConf, confidence) {
+      return name && !blacklist.includes(name) && confidence >= minConf;
+    }
+
+    // 辅助函数：对一组结果逐个尝试匹配数据库，返回匹配到的食物或 null
+    const tryMatchBatch = async (results, blacklist, minConf, apiLabel) => {
+      const candidates = results
+        .filter(r => isValidResult(r.name || r.keyword, blacklist, minConf, r.probability || r.score))
+        .map(r => r.name || r.keyword);
+
+      for (const name of candidates) {
+        const food = await this.queryCalorieAsync(name);
+        if (food) {
+          console.log(`✅ [${apiLabel}] 匹配成功: "${name}" → "${food.name}"`);
+          return food;
+        }
+      }
+      return null;
+    };
+
+    // --- 第一层：菜品识别 ---
+    try {
+      const dishRes = await this.callBaiduAPIPromise(
+        'https://aip.baidubce.com/rest/2.0/image-classify/v2/dish',
+        accessToken, base64Img
+      );
+      if (dishRes.result?.length > 0) {
+        const food = await tryMatchBatch(dishRes.result, NON_DISH_KEYWORDS, 0.5, '菜品识别');
+        if (food) {
+          wx.hideLoading();
+          wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
+          this.handleQuerySuccess(food);
+          return;
+        }
+      }
+    } catch (e) { /* 失败则继续下一层 */ }
+
+    // --- 第二层：果蔬识别 ---
+    try {
+      const ingredientRes = await this.callBaiduAPIPromise(
+        'https://aip.baidubce.com/rest/2.0/image-classify/v1/classify/ingredient',
+        accessToken, base64Img
+      );
+      if (ingredientRes.result?.length > 0) {
+        const food = await tryMatchBatch(ingredientRes.result, NON_INGREDIENT_KEYWORDS, 0.3, '果蔬识别');
+        if (food) {
+          wx.hideLoading();
+          wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
+          this.handleQuerySuccess(food);
+          return;
+        }
+      }
+    } catch (e) { /* 失败则继续下一层 */ }
+
+    // --- 第三层：通用物体识别 ---
+    try {
+      const generalRes = await this.callBaiduAPIPromise(
+        'https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general',
+        accessToken, base64Img
+      );
+      if (generalRes.result?.length > 0) {
+        const food = await tryMatchBatch(generalRes.result, NON_FOOD_KEYWORDS, 0.3, '通用识别');
+        if (food) {
+          wx.hideLoading();
+          wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
+          this.handleQuerySuccess(food);
+          return;
+        }
+      }
+    } catch (e) { /* 失败则进入兜底 */ }
+
+    // --- 全部失败，进入手动选择 ---
+    wx.hideLoading();
+    wx.showToast({ title: '未识别到食物，请手动选择', icon: 'none', duration: 2000 });
+    setTimeout(() => this.showAllFoodsList(), 2000);
+  },
+
+  // Promise 版百度API调用
+  callBaiduAPIPromise(url, accessToken, base64Img) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: url + '?access_token=' + accessToken,
+        method: 'POST',
+        header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        data: { image: base64Img, top_num: 5 },
+        success: (res) => resolve(res.data),
+        fail: reject
+      });
+    });
+  },
+
+  // Promise 版热量查询（返回匹配的 food 对象或 null）
+  queryCalorieAsync(dishName) {
+    return new Promise((resolve) => {
+      const db = wx.cloud.database();
+      // 策略1：精确匹配 name
+      db.collection('foods').where({ name: dishName }).get().then(exactRes => {
+        if (exactRes.data.length > 0) {
+          return resolve(exactRes.data[0]);
+        }
+        // 策略2：获取全量数据，匹配 name + aliases
+        return db.collection('foods').get();
+      }).then(allRes => {
+        if (!allRes || !allRes.data) return;
+        const allFoods = allRes.data;
+        // 优先找最长的包含匹配
+        let bestMatch = null;
+        let bestLen = 0;
+        for (const food of allFoods) {
+          // 匹配 name
+          if (dishName.includes(food.name) || food.name.includes(dishName)) {
+            if (food.name.length > bestLen) {
+              bestMatch = food;
+              bestLen = food.name.length;
+            }
+          }
+          // 匹配 aliases
+          if (food.aliases && Array.isArray(food.aliases)) {
+            for (const alias of food.aliases) {
+              if (dishName.includes(alias) || alias.includes(dishName)) {
+                if (alias.length > bestLen) {
+                  bestMatch = food;
+                  bestLen = alias.length;
+                }
+              }
+            }
+          }
+        }
+        resolve(bestMatch);
+      }).catch(() => {
+        resolve(null);
+      });
+    });
+  },
+
+  // 原有的回调版 queryCalorie（保留兼容，实际已改用 queryCalorieAsync）
+  queryCalorie(dishName) {
+    const db = wx.cloud.database();
+    wx.showLoading({ title: '查询热量中...' });
+
+    db.collection('foods').where({ name: dishName }).get().then(exactRes => {
+      if (exactRes.data.length > 0) {
+        this.handleQuerySuccess(exactRes.data[0]);
+        return;
+      }
+      return db.collection('foods').get();
+    }).then(allFoodsRes => {
+      if (!allFoodsRes) return;
+      const allFoods = allFoodsRes.data;
+      let bestMatch = null;
+      let bestLen = 0;
+      for (const food of allFoods) {
+        if (dishName.includes(food.name) || food.name.includes(dishName)) {
+          if (food.name.length > bestLen) {
+            bestMatch = food;
+            bestLen = food.name.length;
+          }
+        }
+        if (food.aliases && Array.isArray(food.aliases)) {
+          for (const alias of food.aliases) {
+            if (dishName.includes(alias) || alias.includes(dishName)) {
+              if (alias.length > bestLen) {
+                bestMatch = food;
+                bestLen = alias.length;
+              }
+            }
+          }
+        }
+      }
+      if (bestMatch) {
+        this.handleQuerySuccess(bestMatch);
+      } else {
+        wx.hideLoading();
+        wx.showToast({ title: '未收录该食物', icon: 'none' });
+      }
+    }).catch(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '查询失败', icon: 'none' });
+    });
+  },
+
+  handleQuerySuccess(food) {
+    wx.hideLoading();
+    this.setData({
+      result: food,
+      totalCalorie: 0
+    });
+  },
+
+  // 手动选择食物列表（识别失败的兜底方案）
+  showAllFoodsList() {
+    const db = wx.cloud.database();
+    wx.showLoading({ title: '加载食物列表...' });
+    db.collection('foods').get().then(res => {
+      wx.hideLoading();
+      const foods = res.data || [];
+      this.setData({
+        showFoodList: true,
+        allFoods: foods,
+        filteredFoods: foods,
+        foodSearchKeyword: ''
+      });
+    }).catch(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    });
+  },
+
+  hideFoodList() {
+    this.setData({ showFoodList: false });
+  },
+
+  filterFoodList(e) {
+    const keyword = e.detail.value.toLowerCase();
+    const filtered = this.data.allFoods.filter(food => {
+      const matchName = food.name.toLowerCase().includes(keyword);
+      const matchAlias = food.aliases && food.aliases.some(a => a.toLowerCase().includes(keyword));
+      return matchName || matchAlias;
+    });
+    this.setData({ filteredFoods: filtered, foodSearchKeyword: keyword });
+  },
+
+  selectFood(e) {
+    const index = e.currentTarget.dataset.index;
+    const food = this.data.filteredFoods[index];
+    this.setData({ showFoodList: false });
+    this.handleQuerySuccess(food);
+    wx.showToast({ title: '已选择：' + food.name, icon: 'success' });
+  },
+
+  // 手动录入
+  showModal() {
+    this.setData({ showInputModal: true });
+  },
+  hideModal() {
+    this.setData({ showInputModal: false, inputName: '', inputCalorie: '' });
+  },
+  inputNameChange(e) {
+    this.setData({ inputName: e.detail.value });
+  },
+  inputCalorieChange(e) {
+    this.setData({ inputCalorie: e.detail.value });
+  },
+  saveFoodData() {
+    const { inputName, inputCalorie } = this.data;
+    if (!inputName || !inputCalorie) {
+      wx.showToast({ title: '请填写完整信息', icon: 'none' });
+      return;
+    }
+    const db = wx.cloud.database();
+    db.collection('foods').add({
+      data: {
+        name: inputName,
+        calorie: Number(inputCalorie),
+        unit: 'kcal/100g'
+      },
+      success: () => {
+        wx.showToast({ title: '录入成功' });
+        this.hideModal();
+      },
+      fail: () => {
+        wx.showToast({ title: '录入失败', icon: 'none' });
+      }
+    });
+  },
+  calcTotalCalorie(e) {
+    const weight = e.detail.value;
+    const caloriePer100g = this.data.result.calorie;
+    if (weight && caloriePer100g && !isNaN(caloriePer100g)) {
+      const total = (caloriePer100g * weight / 100).toFixed(0);
+      this.setData({ totalCalorie: total });
+    } else {
+      this.setData({ totalCalorie: 0 });
+    }
+  }
+})

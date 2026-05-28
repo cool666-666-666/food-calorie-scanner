@@ -1,0 +1,84 @@
+<!-- 主容器 -->
+<view class="container">
+  <!-- 拍照按钮 -->
+  <button class="camera-btn" bindtap="chooseImage">拍食物 查热量</button>
+
+  <!-- 图片展示区 -->
+  <view class="img-box" wx:if="{{imgSrc}}">
+    <image src="{{imgSrc}}" mode="aspectFit" class="food-img"></image>
+  </view>
+
+  <!-- 识别结果展示区 -->
+  <view class="result-card" wx:if="{{result}}">
+    <view class="result-title">识别结果</view>
+    <view class="result-item">
+      <text>食物名称：</text>
+      <text class="highlight">{{result.name}}</text>
+    </view>
+    <view class="result-item">
+      <text>热量：</text>
+      <text class="calorie">{{result.calorie}}</text>
+      <text> kcal/100g</text>
+    </view>
+    <view class="calc-box">
+      <text>食用克数：</text>
+      <input
+        type="number"
+        placeholder="请输入你吃了多少克"
+        bindinput="calcTotalCalorie"
+        class="weight-input"
+      ></input>
+    </view>
+    <view class="total-result" wx:if="{{totalCalorie}}">
+      本次摄入总热量：<text class="highlight">{{totalCalorie}} kcal</text>
+    </view>
+  </view>
+
+  <!-- 手动录入按钮 -->
+  <button class="manual-btn" bindtap="showModal">手动录入食物热量</button>
+
+  <!-- 手动录入弹窗 -->
+  <modal title="手动录入热量" hidden="{{!showInputModal}}" confirm-text="保存" cancel-text="取消" bindconfirm="saveFoodData" bindcancel="hideModal">
+    <view class="input-item">
+      <text>食物名称：</text>
+      <input placeholder="请输入食物名称" value="{{inputName}}" bindinput="inputNameChange"></input>
+    </view>
+    <view class="input-item">
+      <text>热量（kcal/100g）：</text>
+      <input type="number" placeholder="请输入数字" value="{{inputCalorie}}" bindinput="inputCalorieChange"></input>
+    </view>
+  </modal>
+
+  <!-- 食物选择列表（识别失败兜底） -->
+  <view class="foodlist-overlay" wx:if="{{showFoodList}}" bindtap="hideFoodList">
+    <view class="foodlist-panel" catchtap="nop">
+      <view class="foodlist-header">
+        <text class="foodlist-title">选择食物</text>
+        <text class="foodlist-close" bindtap="hideFoodList">✕</text>
+      </view>
+      <view class="foodlist-search">
+        <input
+          placeholder="搜索食物名称..."
+          value="{{foodSearchKeyword}}"
+          bindinput="filterFoodList"
+          class="foodlist-search-input"
+        ></input>
+      </view>
+      <scroll-view class="foodlist-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <view
+          class="foodlist-item"
+          wx:for="{{filteredFoods}}"
+          wx:key="name"
+          data-index="{{index}}"
+          bindtap="selectFood"
+        >
+          <text class="foodlist-item-name">{{item.name}}</text>
+          <text class="foodlist-item-cal">{{item.calorie}} kcal/100g</text>
+        </view>
+        <view class="foodlist-empty" wx:if="{{filteredFoods.length === 0}}">
+          没有匹配的食物
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,215 @@
+/* 全局主容器：一劳永逸让所有内容居中，避免贴屏幕边缘 */
+.container {
+  width: 100%;
+  min-height: 100vh;
+  padding: 40rpx 30rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 拍食物查热量按钮：解决文字截断+完美居中 */
+.camera-btn {
+  /* 尺寸适配：自动适配文字长度，不会截断 */
+  width: auto;
+  min-width: 420rpx;
+  height: 100rpx;
+  padding: 0 60rpx;
+  /* 样式 */
+  background: #07c160;
+  color: #ffffff;
+  border-radius: 50rpx;
+  border: none;
+  outline: none;
+  /* 文字居中+完整显示 */
+  font-size: 36rpx;
+  font-weight: bold;
+  line-height: 100rpx;
+  text-align: center;
+  white-space: nowrap;
+  /* 上下间距 */
+  margin: 40rpx 0;
+}
+
+/* 手动录入按钮：居中+样式统一 */
+.manual-btn {
+  /* 尺寸适配 */
+  width: auto;
+  min-width: 380rpx;
+  height: 90rpx;
+  padding: 0 50rpx;
+  /* 样式 */
+  background: #ffffff;
+  color: #07c160;
+  border: 2rpx solid #07c160;
+  border-radius: 45rpx;
+  border: none;
+  outline: none;
+  /* 文字居中 */
+  font-size: 32rpx;
+  line-height: 90rpx;
+  text-align: center;
+  white-space: nowrap;
+  /* 上下间距 */
+  margin: 60rpx 0 40rpx;
+}
+
+/* 图片展示区：居中适配 */
+.img-box {
+  width: 90%;
+  margin: 20rpx 0;
+  display: flex;
+  justify-content: center;
+}
+.food-img {
+  width: 100%;
+  max-height: 400rpx;
+  border-radius: 16rpx;
+}
+
+/* 识别结果卡片：宽度适配+内容排版 */
+.result-card {
+  width: 92%;
+  background: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin: 30rpx 0;
+  box-sizing: border-box;
+}
+.result-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+.result-item {
+  font-size: 32rpx;
+  margin: 20rpx 0;
+  line-height: 1.5;
+}
+.highlight {
+  color: #e64340;
+  font-weight: bold;
+}
+.calorie {
+  color: #07c160;
+  font-weight: bold;
+  font-size: 36rpx;
+}
+
+/* 热量计算区域样式 */
+.calc-box {
+  margin: 30rpx 0;
+  display: flex;
+  align-items: center;
+  font-size: 32rpx;
+}
+.weight-input {
+  flex: 1;
+  height: 70rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 0 20rpx;
+  margin-left: 20rpx;
+  background: #ffffff;
+}
+.total-result {
+  font-size: 32rpx;
+  text-align: center;
+  margin-top: 20rpx;
+}
+
+/* 弹窗输入项样式 */
+.input-item {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 0;
+  font-size: 30rpx;
+}
+.input-item input {
+  flex: 1;
+  height: 70rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 0 20rpx;
+  margin-left: 20rpx;
+}
+
+/* 食物选择列表（识别失败兜底） */
+.foodlist-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+}
+.foodlist-panel {
+  width: 100%;
+  height: 70vh;
+  background: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.foodlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+.foodlist-title {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+.foodlist-close {
+  font-size: 40rpx;
+  color: #999;
+  padding: 10rpx;
+}
+.foodlist-search {
+  padding: 20rpx 30rpx;
+}
+.foodlist-search-input {
+  width: 100%;
+  height: 70rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 35rpx;
+  padding: 0 30rpx;
+  font-size: 28rpx;
+  background: #f5f5f5;
+  box-sizing: border-box;
+}
+.foodlist-scroll {
+  flex: 1;
+  padding: 0 20rpx;
+}
+.foodlist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.foodlist-item:active {
+  background: #f5f5f5;
+}
+.foodlist-item-name {
+  font-size: 30rpx;
+  color: #333;
+}
+.foodlist-item-cal {
+  font-size: 26rpx;
+  color: #07c160;
+}
+.foodlist-empty {
+  text-align: center;
+  padding: 60rpx;
+  font-size: 28rpx;
+  color: #999;
+}
