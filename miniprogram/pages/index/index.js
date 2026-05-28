@@ -1,10 +1,5 @@
 const config = require('../../config');
-let localFoodsData = [];
-try {
-  localFoodsData = require('../../foods_data');
-} catch (e) {
-  console.error('加载本地食物数据失败:', e);
-}
+const localFoodsData = require('../../foods_data');
 
 // Promise 化封装
 function requestPromise(options) {
