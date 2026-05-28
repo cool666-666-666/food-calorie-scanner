@@ -92,6 +92,19 @@
   color: #e64340;
   font-weight: bold;
 }
+.confidence-badge {
+  display: inline-block;
+  font-size: 22rpx;
+  background: #07c160;
+  color: #fff;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  margin-left: 12rpx;
+  vertical-align: middle;
+}
+.manual-badge {
+  background: #999;
+}
 .calorie {
   color: #07c160;
   font-weight: bold;

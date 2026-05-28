@@ -14,6 +14,8 @@
     <view class="result-item">
       <text>食物名称：</text>
       <text class="highlight">{{result.name}}</text>
+      <text wx:if="{{result._confidence}}" class="confidence-badge">AI识别</text>
+      <text wx:else class="confidence-badge manual-badge">手动选择</text>
     </view>
     <view class="result-item">
       <text>热量：</text>

@@ -115,7 +115,11 @@ Page({
 
     const NON_DISH_KEYWORDS = ['非菜', '无法识别', '未知菜品', '非菜品', '其他'];
     const NON_INGREDIENT_KEYWORDS = ['非果蔬食材', '无法识别', '未知食材', '其他'];
-    const NON_FOOD_KEYWORDS = ['人物', '建筑', '汽车', '桌子', '盘子', '筷子', '碗', '杯子', '手机', '书本', '动物', '风景'];
+    const NON_FOOD_KEYWORDS = ['人物', '建筑', '汽车', '桌子', '盘子', '筷子', '碗', '杯子', '手机', '书本', '动物', '风景',
+      '瓶子', '罐子', '包装', '塑料', '标签', '纸箱', '盒子', '袋子', 'logo', '商标'];
+
+    // 记录所有识别结果的最高置信度，用于判断AI是否"不确定"
+    let allResults = [];
 
     // 辅助函数：判断结果是否为有效食物
     function isValidResult(name, blacklist, minConf, confidence) {
@@ -126,12 +130,17 @@ Page({
     const tryMatchBatch = async (results, blacklist, minConf, apiLabel) => {
       const candidates = results
         .filter(r => isValidResult(r.name || r.keyword, blacklist, minConf, r.probability || r.score))
-        .map(r => r.name || r.keyword);
+        .map(r => ({ name: r.name || r.keyword, confidence: r.probability || r.score }));
 
-      for (const name of candidates) {
+      // 记录所有结果供后续决策
+      allResults = allResults.concat(candidates);
+
+      for (const { name, confidence } of candidates) {
+        console.log(`🔹 [${apiLabel}] 尝试匹配候选: "${name}" (置信度: ${(confidence*100).toFixed(0)}%)`);
         const food = await this.queryCalorieAsync(name);
         if (food) {
           console.log(`✅ [${apiLabel}] 匹配成功: "${name}" → "${food.name}"`);
+          food._confidence = confidence; // 把置信度附在结果上
           return food;
         }
       }
@@ -145,7 +154,7 @@ Page({
         accessToken, base64Img
       );
       if (dishRes.result?.length > 0) {
-        const food = await tryMatchBatch(dishRes.result, NON_DISH_KEYWORDS, 0.5, '菜品识别');
+        const food = await tryMatchBatch(dishRes.result, NON_DISH_KEYWORDS, 0.6, '菜品识别');
         if (food) {
           wx.hideLoading();
           wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
@@ -155,14 +164,14 @@ Page({
       }
     } catch (e) { /* 失败则继续下一层 */ }
 
-    // --- 第二层：果蔬识别 ---
+    // --- 第二层：果蔬识别（仅用于水果蔬菜食材，高阈值防止误判）---
     try {
       const ingredientRes = await this.callBaiduAPIPromise(
         'https://aip.baidubce.com/rest/2.0/image-classify/v1/classify/ingredient',
         accessToken, base64Img
       );
       if (ingredientRes.result?.length > 0) {
-        const food = await tryMatchBatch(ingredientRes.result, NON_INGREDIENT_KEYWORDS, 0.3, '果蔬识别');
+        const food = await tryMatchBatch(ingredientRes.result, NON_INGREDIENT_KEYWORDS, 0.6, '果蔬识别');
         if (food) {
           wx.hideLoading();
           wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
@@ -172,14 +181,14 @@ Page({
       }
     } catch (e) { /* 失败则继续下一层 */ }
 
-    // --- 第三层：通用物体识别 ---
+    // --- 第三层：通用物体识别（兜底，中等阈值）---
     try {
       const generalRes = await this.callBaiduAPIPromise(
         'https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general',
         accessToken, base64Img
       );
       if (generalRes.result?.length > 0) {
-        const food = await tryMatchBatch(generalRes.result, NON_FOOD_KEYWORDS, 0.3, '通用识别');
+        const food = await tryMatchBatch(generalRes.result, NON_FOOD_KEYWORDS, 0.45, '通用识别');
         if (food) {
           wx.hideLoading();
           wx.showToast({ title: '识别到：' + food.name, icon: 'success' });
@@ -188,6 +197,16 @@ Page({
         }
       }
     } catch (e) { /* 失败则进入兜底 */ }
+
+    // --- 检查是否所有结果置信度都极低，说明AI完全不确定 ---
+    const maxConfidence = allResults.length > 0 ? Math.max(...allResults.map(r => r.confidence)) : 0;
+    if (allResults.length > 0 && maxConfidence < 0.5) {
+      console.log(`🔹 AI整体不确定（最高置信度仅${maxConfidence.toFixed(2)}），直接进入手动选择`);
+      wx.hideLoading();
+      wx.showToast({ title: 'AI识别不太确定，请手动选择', icon: 'none', duration: 2000 });
+      setTimeout(() => this.showAllFoodsList(), 2000);
+      return;
+    }
 
     // --- 全部失败，进入手动选择 ---
     wx.hideLoading();
@@ -383,6 +402,7 @@ Page({
       }
     });
   },
+  nop() {},
   calcTotalCalorie(e) {
     const weight = e.detail.value;
     const caloriePer100g = this.data.result.calorie;
