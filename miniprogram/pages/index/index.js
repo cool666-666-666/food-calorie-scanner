@@ -335,22 +335,37 @@ Page({
     });
   },
 
-  // 手动选择食物列表（识别失败的兜底方案）
+  // 手动选择食物列表（云数据库 + 本地兜底，合并去重）
   showAllFoodsList() {
-    const db = wx.cloud.database();
     wx.showLoading({ title: '加载食物列表...' });
-    db.collection('foods').get().then(res => {
+
+    // 先从云数据库加载（上限100条），失败或不够时用本地数据补充
+    const loadFromCloud = new Promise((resolve) => {
+      const db = wx.cloud.database();
+      db.collection('foods').limit(100).get().then(res => {
+        resolve(res.data || []);
+      }).catch(() => {
+        resolve([]);
+      });
+    });
+
+    loadFromCloud.then(cloudFoods => {
+      // 合并本地数据（用 name 去重，云数据优先）
+      const cloudNames = new Set(cloudFoods.map(f => f.name));
+      const localOnly = (localFoodsData || []).filter(f => !cloudNames.has(f.name));
+      const allFoods = [...cloudFoods, ...localOnly];
+
       wx.hideLoading();
-      const foods = res.data || [];
+      if (allFoods.length === 0) {
+        wx.showToast({ title: '食物列表为空', icon: 'none' });
+        return;
+      }
       this.setData({
         showFoodList: true,
-        allFoods: foods,
-        filteredFoods: foods,
+        allFoods: allFoods,
+        filteredFoods: allFoods,
         foodSearchKeyword: ''
       });
-    }).catch(() => {
-      wx.hideLoading();
-      wx.showToast({ title: '加载失败', icon: 'none' });
     });
   },
 
