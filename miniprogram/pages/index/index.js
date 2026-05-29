@@ -279,9 +279,13 @@ Page({
 
         // 策略3：本地数据兜底
         const localMatch = searchInList(localFoodsData || []);
-        resolve(localMatch);
+        if (localMatch) return resolve(localMatch);
+
+        // 策略4：用户缓存食物兜底
+        const cachedMatch = searchInList(this._getCachedFoods());
+        resolve(cachedMatch);
       }).catch(() => {
-        // 云数据库失败，直接用本地数据
+        // 云数据库失败，直接用本地数据 + 用户缓存
         const searchInList = (list) => {
           let bestMatch = null;
           let bestLen = 0;
