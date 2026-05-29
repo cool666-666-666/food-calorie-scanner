@@ -81,7 +81,8 @@
           <text class="foodlist-item-cal">{{item.calorie}} kcal/100g</text>
         </view>
         <view class="foodlist-empty" wx:if="{{filteredFoods.length === 0}}">
-          没有匹配的食物
+          <text class="foodlist-empty-text">没有匹配的食物</text>
+          <button class="foodlist-empty-btn" bindtap="goAddFood">自行添加食物热量</button>
         </view>
       </scroll-view>
     </view>
