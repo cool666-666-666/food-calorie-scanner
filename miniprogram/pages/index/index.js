@@ -309,7 +309,7 @@ Page({
           }
           return bestMatch;
         };
-        resolve(searchInList(localFoodsData || []));
+        resolve(searchInList(localFoodsData || []) || searchInList(this._getCachedFoods()));
       });
     });
   },
