@@ -34,6 +34,9 @@
     <view class="total-result" wx:if="{{totalCalorie}}">
       本次摄入总热量：<text class="highlight">{{totalCalorie}} kcal</text>
     </view>
+    <view class="manual-select-entry" bindtap="showAllFoodsList">
+      <text>不是这个食物？点此手动选择</text>
+    </view>
   </view>
 
   <!-- 手动录入按钮 -->
