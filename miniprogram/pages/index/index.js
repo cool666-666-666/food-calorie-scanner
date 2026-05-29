@@ -396,6 +396,11 @@ Page({
     this.setData({ showFoodList: false });
   },
 
+  goAddFood() {
+    this.setData({ showFoodList: false });
+    this.showModal();
+  },
+
   filterFoodList(e) {
     const keyword = e.detail.value.toLowerCase();
     const filtered = this.data.allFoods.filter(food => {
