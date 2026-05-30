@@ -1,0 +1,25 @@
+{
+  "session_id": "a5bf7f61-4bad-498b-99d5-c83b82c95e46",
+  "transcript_path": "C:\\Users\\梁爽\\.claude\\projects\\D--wechat-project\\a5bf7f61-4bad-498b-99d5-c83b82c95e46.jsonl",
+  "cwd": "D:\\wechat-project",
+  "model": {
+    "id": "deepseek-v4-pro",
+    "display_name": "deepseek-v4-pro"
+  },
+  "workspace": {
+    "current_dir": "D:\\wechat-project",
+    "project_dir": "D:\\wechat-project"
+  },
+  "version": "2.0.64",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 1.2366197999999997,
+    "total_duration_ms": 1435746,
+    "total_api_duration_ms": 282986,
+    "total_lines_added": 18,
+    "total_lines_removed": 108
+  },
+  "exceeds_200k_tokens": false
+}
