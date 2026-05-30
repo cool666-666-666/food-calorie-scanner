@@ -421,6 +421,41 @@ Page({
 
   nop() {},
 
+  // 长按删除食物（仅限用户添加的，内置local不可删）
+  deleteFood(e) {
+    const name = e.currentTarget.dataset.name;
+    const from = e.currentTarget.dataset.from;
+    if (from === 'local') {
+      wx.showToast({ title: '内置食物不可删除', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '删除食物',
+      content: `确定删除「${name}」吗？`,
+      success: (res) => {
+        if (!res.confirm) return;
+        // 删除本地缓存
+        if (from === 'cache') this._removeCachedFood(name);
+        // 删除云端数据
+        wx.cloud.callFunction({ name: 'deleteFood', data: { name } }).then(() => {
+          // 刷新列表
+          const all = this.data.allFoods.filter(f => f.name !== name);
+          const filtered = this.data.filteredFoods.filter(f => f.name !== name);
+          this.setData({ allFoods: all, filteredFoods: filtered });
+          wx.showToast({ title: '已删除', icon: 'success' });
+        }).catch(() => {
+          wx.showToast({ title: '删除失败', icon: 'none' });
+        });
+      }
+    });
+  },
+
+  _removeCachedFood(name) {
+    const cached = this._getCachedFoods();
+    const updated = cached.filter(f => f.name !== name);
+    wx.setStorageSync('user_added_foods', updated);
+  },
+
   // 本地缓存用户添加的食物（用于食物列表补充）
   _getCachedFoods() {
     try {
