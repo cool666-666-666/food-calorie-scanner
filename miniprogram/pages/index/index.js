@@ -171,7 +171,7 @@ Page({
     }
 
     // 跨 API 共识评分决策
-    const ingredientThreshold = isPackaging ? 0.65 : 0.6;
+    const ingredientThreshold = isPackaging ? 0.80 : 0.6;
 
     const API_WEIGHTS = { '菜品识别': 0.95, '果蔬识别': 1.0, '通用识别': 0.85 };
     const CONSENSUS_BONUS = 0.25;
