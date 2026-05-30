@@ -113,8 +113,7 @@ Page({
 
     const NON_DISH_KEYWORDS = ['非菜', '无法识别', '未知菜品', '非菜品', '其他'];
     const NON_INGREDIENT_KEYWORDS = ['非果蔬食材', '无法识别', '未知食材', '其他'];
-    const NON_FOOD_KEYWORDS = ['人物', '建筑', '汽车', '桌子', '盘子', '筷子', '碗', '杯子', '手机', '书本', '动物', '风景',
-      '瓶子', '罐子', '包装', '塑料', '标签', '纸箱', '盒子', '袋子', 'logo', '商标'];
+    const NON_FOOD_KEYWORDS = ['人物', '建筑', '汽车', '桌子', '筷子', '手机', '书本', '动物', '风景', 'logo', '商标'];
     const PACKAGING_KEYWORDS = ['瓶', '罐', '包装', '盒', '袋', '桶', '杯', '碗', '盘', '塑料', '玻璃', '易拉罐', '容器'];
 
     function isValidResult(name, blacklist, minConf, confidence) {
