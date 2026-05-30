@@ -15,11 +15,11 @@
     "name": "default"
   },
   "cost": {
-    "total_cost_usd": 1.2366197999999997,
-    "total_duration_ms": 1435746,
-    "total_api_duration_ms": 282986,
-    "total_lines_added": 18,
-    "total_lines_removed": 108
+    "total_cost_usd": 0.2146134,
+    "total_duration_ms": 101896,
+    "total_api_duration_ms": 45523,
+    "total_lines_added": 0,
+    "total_lines_removed": 0
   },
   "exceeds_200k_tokens": false
 }
