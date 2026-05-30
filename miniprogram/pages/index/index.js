@@ -213,6 +213,24 @@ Page({
       }
       ranked.sort((a, b) => b._score - a._score);
 
+      // 整菜优先：如果菜品API匹配到的菜名包含了其他候选的名字（如"番茄炒蛋"包含"鸡蛋"），给予加成
+      for (let i = 0; i < ranked.length; i++) {
+        if (ranked[i]._apiLabel === '菜品识别') {
+          let hasSubMatch = false;
+          for (let j = 0; j < ranked.length; j++) {
+            if (i !== j && ranked[i].name.includes(ranked[j].name)) {
+              hasSubMatch = true;
+              break;
+            }
+          }
+          if (hasSubMatch) {
+            ranked[i]._score += 0.25;
+            console.log(`[整菜优先] "${ranked[i].name}" 包含子食材，得分+0.25 → ${ranked[i]._score.toFixed(2)}`);
+          }
+        }
+      }
+      ranked.sort((a, b) => b._score - a._score);
+
       const best = ranked[0];
       console.log(`[共识评分] 最优: "${best.name}" score=${best._score.toFixed(2)} consensus=${best._consensus}`);
 
