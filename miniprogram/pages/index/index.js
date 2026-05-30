@@ -24,9 +24,6 @@ Page({
   data: {
     imgSrc: '',
     result: null,
-    showInputModal: false,
-    inputName: '',
-    inputCalorie: '',
     totalCalorie: 0,
     showFoodList: false,
     allFoods: [],
