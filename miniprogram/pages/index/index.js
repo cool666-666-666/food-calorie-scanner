@@ -217,7 +217,7 @@ Page({
       const best = ranked[0];
       console.log(`[共识评分] 最优: "${best.name}" score=${best._score.toFixed(2)} consensus=${best._consensus}`);
 
-      // 评分 >= 0.5 直接用，有共识且 >= 0.3 也用
+      // 评分 >= 0.35 直接用，有共识且 >= 0.25 也用
       if (best._score >= 0.5 || (best._consensus && best._score >= 0.3)) {
         wx.hideLoading();
         wx.showToast({ title: '识别到：' + best.name, icon: 'success' });
