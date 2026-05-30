@@ -367,9 +367,9 @@ Page({
 
   // 手动选择食物列表（本地831条 + 云端补充去重）
   showAllFoodsList() {
-    // 立即展示本地数据 + 用户缓存食物
-    const localList = localFoodsData || [];
-    const cachedFoods = this._getCachedFoods();
+    // 立即展示本地数据 + 用户缓存食物，标记来源
+    const localList = (localFoodsData || []).map(f => ({ ...f, _from: 'local' }));
+    const cachedFoods = this._getCachedFoods().map(f => ({ ...f, _from: 'cache' }));
     const localNames = new Set(localList.map(f => f.name));
     const uniqueCached = cachedFoods.filter(f => !localNames.has(f.name));
     const initialList = [...uniqueCached, ...localList];
@@ -380,10 +380,10 @@ Page({
       foodSearchKeyword: ''
     });
 
-    // 异步加载云端数据补充（云端录入的用户自定义食物）
+    // 异步加载云端数据补充，标记来源
     const db = wx.cloud.database();
     db.collection('foods').limit(100).get().then(res => {
-      const cloudFoods = res.data || [];
+      const cloudFoods = (res.data || []).map(f => ({ ...f, _from: 'cloud' }));
       if (cloudFoods.length === 0) return;
       const currentNames = new Set(this.data.allFoods.map(f => f.name));
       const newFromCloud = cloudFoods.filter(f => !currentNames.has(f.name));
