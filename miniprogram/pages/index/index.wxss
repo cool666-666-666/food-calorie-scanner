@@ -226,14 +226,3 @@
   color: #999;
   margin-bottom: 40rpx;
 }
-.foodlist-empty-btn {
-  width: auto;
-  display: inline-block;
-  padding: 16rpx 50rpx;
-  font-size: 28rpx;
-  color: #07c160;
-  background: #fff;
-  border: 1rpx solid #07c160;
-  border-radius: 40rpx;
-  line-height: 1.4;
-}
