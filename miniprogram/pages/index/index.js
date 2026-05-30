@@ -170,54 +170,63 @@ Page({
       console.log('[包装检测] 检测到包装/容器特征，果蔬识别阈值提升至 0.85');
     }
 
-    // 计算全局最高置信度
-    const allConfidences = [
-      ...dishResults.map(r => r.probability || r.score || 0),
-      ...ingredientResults.map(r => r.probability || r.score || 0),
-      ...generalResults.map(r => r.probability || r.score || 0)
-    ];
-    const maxConfidence = allConfidences.length > 0 ? Math.max(...allConfidences) : 0;
-
-    // 决策顺序：菜品 -> 果蔬（可能被包装检测抑制）-> 通用
-
-    // 1) 菜品识别（阈值 0.5）
-    const dishMatch = await tryMatchBatch(dishResults, NON_DISH_KEYWORDS, 0.5, '菜品识别');
-    if (dishMatch) {
-      wx.hideLoading();
-      wx.showToast({ title: '识别到：' + dishMatch.name, icon: 'success' });
-      this.handleQuerySuccess(dishMatch);
-      return;
-    }
-
-    // 2) 果蔬识别（包装图片阈值 0.85，正常图片 0.6）
+    // 跨 API 共识评分决策
     const ingredientThreshold = isPackaging ? 0.85 : 0.6;
-    const ingredientMatch = await tryMatchBatch(ingredientResults, NON_INGREDIENT_KEYWORDS, ingredientThreshold, '果蔬识别');
-    if (ingredientMatch) {
-      wx.hideLoading();
-      wx.showToast({ title: '识别到：' + ingredientMatch.name, icon: 'success' });
-      this.handleQuerySuccess(ingredientMatch);
-      return;
+
+    const API_WEIGHTS = { '菜品识别': 0.95, '果蔬识别': 1.0, '通用识别': 0.85 };
+    const CONSENSUS_BONUS = 0.25;
+
+    // 并行收集三路全部候选
+    const [dishCandidates, ingredientCandidates, generalCandidates] = await Promise.all([
+      tryMatchAll(dishResults, NON_DISH_KEYWORDS, 0.5, '菜品识别'),
+      tryMatchAll(ingredientResults, NON_INGREDIENT_KEYWORDS, ingredientThreshold, '果蔬识别'),
+      tryMatchAll(generalResults, NON_FOOD_KEYWORDS, 0.4, '通用识别')
+    ]);
+
+    const allCandidates = [...dishCandidates, ...ingredientCandidates, ...generalCandidates];
+
+    if (allCandidates.length > 0) {
+      // 按食物名称分组，取每组最高加权分
+      const groups = {};
+      for (const food of allCandidates) {
+        const name = food.name;
+        if (!groups[name]) groups[name] = [];
+        groups[name].push(food);
+      }
+
+      const ranked = [];
+      for (const [name, items] of Object.entries(groups)) {
+        const apiSources = new Set(items.map(f => f._apiLabel));
+        const consensusBonus = apiSources.size >= 2 ? CONSENSUS_BONUS : 0;
+        let bestScore = 0;
+        let bestItem = items[0];
+        for (const item of items) {
+          const apiWeight = API_WEIGHTS[item._apiLabel] || 1.0;
+          const score = item._confidence * apiWeight + consensusBonus;
+          if (score > bestScore) {
+            bestScore = score;
+            bestItem = item;
+          }
+        }
+        bestItem._score = bestScore;
+        bestItem._consensus = apiSources.size >= 2;
+        ranked.push(bestItem);
+      }
+      ranked.sort((a, b) => b._score - a._score);
+
+      const best = ranked[0];
+      console.log(`[共识评分] 最优: "${best.name}" score=${best._score.toFixed(2)} consensus=${best._consensus}`);
+
+      // 评分 >= 0.5 直接用，有共识且 >= 0.3 也用
+      if (best._score >= 0.5 || (best._consensus && best._score >= 0.3)) {
+        wx.hideLoading();
+        wx.showToast({ title: '识别到：' + best.name, icon: 'success' });
+        this.handleQuerySuccess(best);
+        return;
+      }
     }
 
-    // 3) 通用识别（阈值 0.4）
-    const generalMatch = await tryMatchBatch(generalResults, NON_FOOD_KEYWORDS, 0.4, '通用识别');
-    if (generalMatch) {
-      wx.hideLoading();
-      wx.showToast({ title: '识别到：' + generalMatch.name, icon: 'success' });
-      this.handleQuerySuccess(generalMatch);
-      return;
-    }
-
-    // 全局低置信度兜底
-    if (allConfidences.length > 0 && maxConfidence < 0.5) {
-      console.log(`AI整体不确定（最高置信度仅${maxConfidence.toFixed(2)}），直接进入手动选择`);
-      wx.hideLoading();
-      wx.showToast({ title: 'AI识别不太确定，请手动选择', icon: 'none', duration: 2000 });
-      setTimeout(() => this.showAllFoodsList(), 2000);
-      return;
-    }
-
-    // 全部失败，进入手动选择
+    // 无足够信心的结果，进入手动选择
     wx.hideLoading();
     wx.showToast({ title: '未识别到食物，请手动选择', icon: 'none', duration: 2000 });
     setTimeout(() => this.showAllFoodsList(), 2000);
