@@ -277,6 +277,16 @@ Page({
         }
 
         const searchInList = (list) => {
+          // 精确匹配优先：查询词 === 食物名或别名，直接返回（避免"玉米"→"咸蛋黄焗玉米"）
+          for (const food of list) {
+            if (dishName === food.name) return food;
+            if (food.aliases && Array.isArray(food.aliases)) {
+              for (const alias of food.aliases) {
+                if (dishName === alias) return food;
+              }
+            }
+          }
+          // 无精确匹配，再走子串模糊匹配
           let bestMatch = null;
           let bestLen = 0;
           let bestRatio = 0;
@@ -312,6 +322,15 @@ Page({
       }).catch(() => {
         // 云数据库失败，直接用本地数据 + 用户缓存
         const searchInList = (list) => {
+          // 精确匹配优先
+          for (const food of list) {
+            if (dishName === food.name) return food;
+            if (food.aliases && Array.isArray(food.aliases)) {
+              for (const alias of food.aliases) {
+                if (dishName === alias) return food;
+              }
+            }
+          }
           let bestMatch = null;
           let bestLen = 0;
           let bestRatio = 0;
