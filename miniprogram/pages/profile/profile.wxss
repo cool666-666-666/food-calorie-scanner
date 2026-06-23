@@ -118,8 +118,11 @@
   color: #fff;
   border-radius: 40rpx;
   font-size: 32rpx;
-  line-height: 80rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .save-btn::after {
   border: none;
