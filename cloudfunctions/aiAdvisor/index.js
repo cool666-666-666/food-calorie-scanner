@@ -111,8 +111,7 @@ exports.main = async function(event) {
       model: 'deepseek-chat',
       messages: messages,
       temperature: 0.7,
-      max_tokens: 800,
-      response_format: { type: 'json_object' }
+      max_tokens: 800
     });
 
     return JSON.parse(llmResponse);
