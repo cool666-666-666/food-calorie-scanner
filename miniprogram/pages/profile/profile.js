@@ -84,6 +84,27 @@ Page({
     this.setData({ activityIndex: Number(e.detail.value) });
   },
 
+  loadUserInfo() {
+    try {
+      const saved = wx.getStorageSync('user_info');
+      if (saved) {
+        this.setData({
+          avatarUrl: saved.avatarUrl || '',
+          nickName: saved.nickName || ''
+        });
+      }
+    } catch (e) {}
+  },
+
+  onChooseAvatar(e) {
+    const avatarUrl = e.detail.avatarUrl;
+    this.setData({ avatarUrl });
+    try {
+      const saved = wx.getStorageSync('user_info') || {};
+      wx.setStorageSync('user_info', { ...saved, avatarUrl });
+    } catch (e) {}
+  },
+
   saveProfile() {
     const { height, weight, age, gender, activityIndex } = this.data;
     const h = Number(height);
