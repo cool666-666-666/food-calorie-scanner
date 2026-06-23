@@ -4,8 +4,10 @@
   </view>
 
   <view class="user-card">
-    <open-data class="user-avatar" type="userAvatarUrl"></open-data>
-    <open-data class="user-name" type="userNickName"></open-data>
+    <button class="avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+      <image class="user-avatar" src="{{avatarUrl || '../../images/avatar.png'}}" mode="aspectFill"></image>
+    </button>
+    <text class="user-name">{{nickName || '微信用户'}}</text>
   </view>
 
   <view class="card">
